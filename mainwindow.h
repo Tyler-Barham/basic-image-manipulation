@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QColor>
+#include <QImage>
 #include <QPixmap>
 #include <QDebug>
 
@@ -26,7 +28,7 @@ class MainWindow : public QMainWindow
 
 private:
         Ui::MainWindow *ui;
-        QPixmap origImg;
+        QImage origImg;
         int threshold;
 };
 

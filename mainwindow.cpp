@@ -15,7 +15,7 @@ MainWindow::MainWindow( QWidget *parent ) :
     threshold = ui->horizontalSlider->value();
 
     // Set the label pixmap as the original image
-    ui->contentImage->setPixmap( origImg );
+    ui->contentImage->setPixmap( QPixmap::fromImage( origImg ) );
 }
 
 MainWindow::~MainWindow()
@@ -33,42 +33,38 @@ void MainWindow::on_horizontalSlider_valueChanged( int value )
 void MainWindow::on_buttonReload_clicked()
 {
     // Set the label pixmap as the original image
-    ui->contentImage->setPixmap( origImg );
+    ui->contentImage->setPixmap( QPixmap::fromImage( origImg ) );
 }
 
 void MainWindow::on_buttonProcess_clicked()
 {
-    QImage img = origImg.toImage();
-    int height = img.height();
-    int width = img.width();
-    int* imgArr = new int[ width * height ];
+    int width = origImg.width();
+    int height = origImg.height();
+    QImage newImg( width, height, QImage::Format_RGB16 );
+    int *imgArray = new int[ width * height ];
 
     // Store grayscale pixmap into int[]
     for(int y = 0; y < height; y++)
     {
         for(int x = 0; x < width; x++)
         {
-            imgArr[ y * width + x ] = qGray( img.pixel( x, y ) );
+            imgArray[ y * width + x ] = qGray( origImg.pixel( x, y ) );
         }
     }
 
     // Get the new image as int[]
-    int *newImg = computeMask( threshold, imgArr, width, height );
+    imgArray = computeMask( threshold, imgArray, width, height );
 
-    // Set background pixels to black
+    // Set pixels to appropriate color
     for(int y = 0; y < height; y++)
     {
         for(int x = 0; x < width; x++)
         {
-            if( newImg[ y * width + x ] == 0 )
-            {
-                img.setPixelColor( x, y, QColor( "black" ) );
-            }
+            int rgb = imgArray[ y * width + x ];
+            newImg.setPixelColor( x, y, QColor( rgb, rgb, rgb ) );
         }
     }
 
-    // Convert image to pixmap, then display
-    QPixmap tempPixmap;
-    tempPixmap.convertFromImage( img );
-    ui->contentImage->setPixmap( tempPixmap );
+    // Display the image
+    ui->contentImage->setPixmap( QPixmap::fromImage( newImg ) );
 }
