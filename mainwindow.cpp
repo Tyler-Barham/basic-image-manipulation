@@ -1,9 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-extern "C"
-int* computeMask( int threshold, int imgArr[], int width, int height );
-
 MainWindow::MainWindow( QWidget *parent ) :
     QMainWindow( parent ),
     ui( new Ui::MainWindow ),
@@ -16,11 +13,21 @@ MainWindow::MainWindow( QWidget *parent ) :
 
     // Set the label pixmap as the original image
     ui->contentImage->setPixmap( QPixmap::fromImage( origImg ) );
+
+    // Set up the image processor
+    imgProcessor = new ImageProcessor( origImg );
+    imgThread = new QThread();
+    imgProcessor->moveToThread( imgThread );
+    connect( this, &MainWindow::thresholdImage, imgProcessor, &ImageProcessor::startThresholding );
+    connect( imgProcessor, &ImageProcessor::thresholdComplete, this, &MainWindow::updateImage );
+    imgThread->start();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    imgProcessor->deleteLater();
+    imgThread->deleteLater();
 }
 
 void MainWindow::on_horizontalSlider_valueChanged( int value )
@@ -38,35 +45,10 @@ void MainWindow::on_buttonReload_clicked()
 
 void MainWindow::on_buttonProcess_clicked()
 {
-    int width = origImg.width();
-    int height = origImg.height();
-    QImage newImg( width, height, QImage::Format_RGB16 );
-    int *imgArray = new int[ width * height ];
+    emit thresholdImage( threshold );
+}
 
-    // Store grayscale pixmap into int[]
-    for(int y = 0; y < height; y++)
-    {
-        for(int x = 0; x < width; x++)
-        {
-            imgArray[ y * width + x ] = qGray( origImg.pixel( x, y ) );
-        }
-    }
-
-    // Get the new image as int[]
-    imgArray = computeMask( threshold, imgArray, width, height );
-
-    // Set pixels to appropriate color
-    for(int y = 0; y < height; y++)
-    {
-        for(int x = 0; x < width; x++)
-        {
-            int rgb = imgArray[ y * width + x ];
-            newImg.setPixelColor( x, y, QColor( rgb, rgb, rgb ) );
-        }
-    }
-
-    // Display the image
-    ui->contentImage->setPixmap( QPixmap::fromImage( newImg ) );
-
-    delete[] imgArray;
+void MainWindow::updateImage( QPixmap newImg )
+{
+    ui->contentImage->setPixmap( newImg );
 }
