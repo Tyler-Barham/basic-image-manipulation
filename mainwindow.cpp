@@ -67,4 +67,6 @@ void MainWindow::on_buttonProcess_clicked()
 
     // Display the image
     ui->contentImage->setPixmap( QPixmap::fromImage( newImg ) );
+
+    delete[] imgArray;
 }
