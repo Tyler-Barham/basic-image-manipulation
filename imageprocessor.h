@@ -5,24 +5,20 @@
 #include <QPixmap>
 #include <QImage>
 #include <QColor>
+#include <opencv2/opencv.hpp>
 
 class ImageProcessor : public QObject
 {
     Q_OBJECT
     public:
-        ImageProcessor( QImage origImg );
+        ImageProcessor();
         ~ImageProcessor();
 
     signals:
-        void thresholdComplete( QPixmap updatedImg );
+        void thresholdComplete( cv::Mat updatedImg );
 
     public slots:
-        void startThresholding( int threshold );
-
-    private:
-        QImage origImg;
-        int imgWidth;
-        int imgHeight;
+        void startThresholding( int threshold, cv::Mat image );
 };
 
 #endif // IMAGEPROCESSOR_H

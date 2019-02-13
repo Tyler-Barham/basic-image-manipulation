@@ -1,13 +1,11 @@
 #include "imageprocessor.h"
 
 extern "C"
-int* computeMask( int threshold, int imgArr[], int width, int height );
+cv::Mat computeThreshold( int threshold, cv::Mat image );
 
-ImageProcessor::ImageProcessor( QImage origImg )
+ImageProcessor::ImageProcessor()
 {
-    imgWidth = origImg.width();
-    imgHeight = origImg.height();
-    this->origImg = origImg;
+
 }
 
 ImageProcessor::~ImageProcessor()
@@ -15,34 +13,8 @@ ImageProcessor::~ImageProcessor()
 
 }
 
-void ImageProcessor::startThresholding( int threshold )
+void ImageProcessor::startThresholding( int threshold, cv::Mat image )
 {
-    QImage newImg( imgWidth, imgHeight, QImage::Format_RGB16 );
-    int *imgArray = new int[ imgWidth * imgHeight ];
-
-    // Store grayscale pixmap into int[]
-    for(int y = 0; y < imgHeight; y++)
-    {
-        for(int x = 0; x < imgWidth; x++)
-        {
-            imgArray[ y * imgWidth + x ] = qGray( origImg.pixel( x, y ) );
-        }
-    }
-
-    // Get the new image as int[]
-    imgArray = computeMask( threshold, imgArray, imgWidth, imgHeight );
-
-    // Set pixels to appropriate color
-    for(int y = 0; y < imgHeight; y++)
-    {
-        for(int x = 0; x < imgWidth; x++)
-        {
-            int rgb = imgArray[ y * imgWidth + x ];
-            newImg.setPixelColor( x, y, QColor( rgb, rgb, rgb ) );
-        }
-    }
-
-    delete[] imgArray;
-
-    emit thresholdComplete( QPixmap::fromImage( newImg ) );
+    // Signal that the thresholding is complete with a new cv::Mat from the cuda file
+    emit thresholdComplete( computeThreshold( threshold, image ) );
 }

@@ -24,22 +24,22 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += \
-        main.cpp \
-        mainwindow.cpp \
+    main.cpp \
+    mainwindow.cpp \
     imageprocessor.cpp
 
 HEADERS += \
-        mainwindow.h \
+    mainwindow.h \
     imageprocessor.h
 
 FORMS += \
-        mainwindow.ui
+    mainwindow.ui
 
 RESOURCES += \
     resources.qrc
 
 # This makes the .cu files appear in your project
-CUDA_SOURCES += imagemask.cu
+CUDA_SOURCES += imagethreshold.cu
 
 OTHER_FILES +=
     $$CUDA_SOURCES
@@ -53,22 +53,35 @@ SYSTEM_TYPE = 64 # '32' or '64', depending on your system
 CUDA_ARCH = sm_21 # Type of CUDA architecture, for example 'compute_10', 'compute_11', 'sm_10'
 NVCC_OPTIONS = --use_fast_math
 
-# include paths
-INCLUDEPATH += $$CUDA_DIR/include
+
 
 # library directories
 QMAKE_LIBDIR += $$CUDA_DIR/lib64/
 
 CUDA_OBJECTS_DIR = ./
 
-
 # Add the necessary libraries
-CUDA_LIBS = -lcuda -lcudart
+CUDA_LIBS = \
+    -lcuda \
+    -lcudart
+
+OPENCV_LIBS = \
+    -L/opt/opencv/lib \
+    -lopencv_core \
+    -lopencv_gpu \
+    -lopencv_highgui
+
+# include paths
+INCLUDEPATH += \
+    $$CUDA_DIR/include \
+    /opt/opencv/include
 
 # The following makes sure all path names (which often include spaces) are put between quotation marks
 CUDA_INC = $$join(INCLUDEPATH,'" -I"','-I"','"')
-#LIBS += $$join(CUDA_LIBS,'.so ', '', '.so')
-LIBS += $$CUDA_LIBS
+
+LIBS += \
+    $$CUDA_LIBS \
+    $$OPENCV_LIBS
 
 # Configuration of the Cuda compiler
 CONFIG(debug, debug|release) {

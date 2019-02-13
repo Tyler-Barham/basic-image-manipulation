@@ -2,9 +2,14 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QString>
 #include <QThread>
 #include <QPixmap>
 #include <QImage>
+#include <QTemporaryDir>
+#include <QTemporaryFile>
+#include <QFile>
+#include <opencv2/opencv.hpp>
 #include <QDebug>
 
 #include "imageprocessor.h"
@@ -25,16 +30,19 @@ class MainWindow : public QMainWindow
         void on_horizontalSlider_valueChanged( int value );
         void on_buttonReload_clicked();
         void on_buttonProcess_clicked();
-        void updateImage( QPixmap newImg );
+        void updateImage( cv::Mat newImg );
 
     signals:
-        void thresholdImage( int threshold );
+        void thresholdImage( int threshold, cv::Mat image );
 
     private:
+        void updateUIWithCurrImage();
+
         Ui::MainWindow *ui;
         ImageProcessor *imgProcessor;
         QThread *imgThread;
-        QImage origImg;
+        cv::Mat origImg;
+        cv::Mat currImg;
         int threshold;
 };
 
