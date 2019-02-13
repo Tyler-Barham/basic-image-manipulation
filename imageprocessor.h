@@ -16,9 +16,11 @@ class ImageProcessor : public QObject
 
     signals:
         void thresholdComplete( cv::Mat updatedImg );
+        void edgesComplete( cv::Mat updatedImg );
 
     public slots:
         void startThresholding( int threshold, cv::Mat image );
+        void startEdgeDetection( cv::Mat image );
 };
 
 #endif // IMAGEPROCESSOR_H

@@ -40,7 +40,9 @@ MainWindow::MainWindow( QWidget *parent ) :
     imgThread = new QThread();
     imgProcessor->moveToThread( imgThread );
     connect( this, &MainWindow::thresholdImage, imgProcessor, &ImageProcessor::startThresholding );
+    connect( this, &MainWindow::detectEdges, imgProcessor, &ImageProcessor::startEdgeDetection );
     connect( imgProcessor, &ImageProcessor::thresholdComplete, this, &MainWindow::updateImage );
+    connect( imgProcessor, &ImageProcessor::edgesComplete, this, &MainWindow::updateImage );
     imgThread->start();
 }
 
@@ -74,7 +76,7 @@ void MainWindow::on_buttonReload_clicked()
     updateUIWithCurrImage();
 }
 
-void MainWindow::on_buttonProcess_clicked()
+void MainWindow::on_buttonThreshold_clicked()
 {
     // Start the thresholding process
     emit thresholdImage( threshold, currImg );
@@ -85,4 +87,9 @@ void MainWindow::updateImage( cv::Mat newImg )
     currImg = newImg;
     // Update the UI with the thresholded image
     updateUIWithCurrImage();
+}
+
+void MainWindow::on_buttonEgdes_clicked()
+{
+    emit detectEdges( currImg );
 }

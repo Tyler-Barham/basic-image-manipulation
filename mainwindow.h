@@ -29,11 +29,13 @@ class MainWindow : public QMainWindow
     private slots:
         void on_horizontalSlider_valueChanged( int value );
         void on_buttonReload_clicked();
-        void on_buttonProcess_clicked();
+        void on_buttonThreshold_clicked();
         void updateImage( cv::Mat newImg );
+        void on_buttonEgdes_clicked();
 
-    signals:
+signals:
         void thresholdImage( int threshold, cv::Mat image );
+        void detectEdges( cv::Mat image );
 
     private:
         void updateUIWithCurrImage();
