@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+#include "include/mainwindow.h"
 #include "ui_mainwindow.h"
 
 MainWindow::MainWindow( QWidget *parent ) :
@@ -36,20 +36,20 @@ MainWindow::MainWindow( QWidget *parent ) :
     qRegisterMetaType< cv::Mat >("cv::Mat");
 
     // Set up the image processor
-    imgProcessor = new ImageProcessor();
+    imgProWrapper = new ImageProcessorWrapper( origImg );
     imgThread = new QThread();
-    imgProcessor->moveToThread( imgThread );
-    connect( this, &MainWindow::thresholdImage, imgProcessor, &ImageProcessor::startThresholding );
-    connect( this, &MainWindow::detectEdges, imgProcessor, &ImageProcessor::startEdgeDetection );
-    connect( imgProcessor, &ImageProcessor::thresholdComplete, this, &MainWindow::updateImage );
-    connect( imgProcessor, &ImageProcessor::edgesComplete, this, &MainWindow::updateImage );
+    imgProWrapper->moveToThread( imgThread );
+    connect( this, &MainWindow::thresholdImage, imgProWrapper, &ImageProcessorWrapper::startThresholding );
+    connect( this, &MainWindow::detectEdges, imgProWrapper, &ImageProcessorWrapper::startEdgeDetection );
+    connect( imgProWrapper, &ImageProcessorWrapper::thresholdComplete, this, &MainWindow::updateImage );
+    connect( imgProWrapper, &ImageProcessorWrapper::edgesComplete, this, &MainWindow::updateImage );
     imgThread->start();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    imgProcessor->deleteLater();
+    imgProWrapper->deleteLater();
     imgThread->deleteLater();
 }
 

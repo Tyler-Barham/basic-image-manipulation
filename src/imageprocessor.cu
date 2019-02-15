@@ -2,15 +2,20 @@
 #include <cuda_runtime.h>
 #include <opencv2/opencv.hpp>
 
-extern "C"
-cv::Mat computeThreshold( int threshold, cv::Mat image );
-cv::Mat computeEdges( cv::Mat image );
+extern "C" void SetupImageProcessor( cv::Mat image );
+extern "C" void DestroyImageProcessor();
+extern "C" cv::Mat computeThreshold( int threshold, cv::Mat image );
+extern "C" cv::Mat computeEdges( cv::Mat image );
 
-__global__ void applyThreshold( int threshold,
-                                unsigned char* array,
-                                int width,
-                                int height,
-                                int step )
+unsigned char *imageArray;
+int imageBytes;
+int width;
+int height;
+int step;
+dim3 block;
+dim3 grid;
+
+__global__ void applyThreshold( unsigned char *imageArray, int threshold, const int width, const int height, const int step )
 {
     // 2D Index of current thread
     const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -22,10 +27,10 @@ __global__ void applyThreshold( int threshold,
         // Location of pixel in image
         const int pid = yIndex * step + ( 3 * xIndex );
 
-        // BGR values of the pixel
-        const unsigned char blue = array[ pid ];
-        const unsigned char green = array[ pid + 1 ];
-        const unsigned char red = array[ pid + 2 ];
+        // RGB values of the pixel
+        const unsigned char red = imageArray[ pid ];
+        const unsigned char green = imageArray[ pid + 1 ];
+        const unsigned char blue = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
         const float gray = ( ( red * 11.0f ) + ( green * 16.0f ) + ( blue * 5.0f ) ) / 32.0f;
@@ -34,17 +39,14 @@ __global__ void applyThreshold( int threshold,
         if( gray < threshold )
         {
             // Change pixel to black
-            array[ pid ] = static_cast<unsigned char>( 0.0f );
-            array[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
-            array[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
+            imageArray[ pid ] = static_cast<unsigned char>( 0.0f );
+            imageArray[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
+            imageArray[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
         }
     }
 }
 
-__global__ void applyEdgeDetection( unsigned char* array,
-                                    int width,
-                                    int height,
-                                    int step )
+__global__ void applyEdgeDetection( unsigned char *imageArray, const int width, const int height, const int step )
 {
     // 2D Index of current thread
     const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -56,10 +58,10 @@ __global__ void applyEdgeDetection( unsigned char* array,
         // Location of pixel in image
         const int pid = yIndex * step + ( 3 * xIndex );
 
-        // BGR values of the pixel
-        const unsigned char red = array[ pid ];
-        const unsigned char green = array[ pid + 1 ];
-        const unsigned char blue = array[ pid + 2 ];
+        // RGB values of the pixel
+        const unsigned char red = imageArray[ pid ];
+        const unsigned char green = imageArray[ pid + 1 ];
+        const unsigned char blue = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
         const float gray = ( ( red * 11.0f ) + ( green * 16.0f ) + ( blue * 5.0f ) ) / 32.0f;
@@ -95,9 +97,9 @@ __global__ void applyEdgeDetection( unsigned char* array,
                 }
 
                 // BGR values of the pixel
-                const unsigned char red = array[ currPix ];
-                const unsigned char green = array[ currPix + 1 ];
-                const unsigned char blue = array[ currPix + 2 ];
+                const unsigned char red = imageArray[ currPix ];
+                const unsigned char green = imageArray[ currPix + 1 ];
+                const unsigned char blue = imageArray[ currPix + 2 ];
 
                 // If neighbor is black, this is an edge
                 if( red == 0 && green == 0 && blue == 0 )
@@ -111,41 +113,46 @@ __global__ void applyEdgeDetection( unsigned char* array,
             if( edge )
             {
                 // Change pixel to black
-                array[ pid ] = static_cast<unsigned char>( 255.0f );
-                array[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
-                array[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
+                imageArray[ pid ] = static_cast<unsigned char>( 255.0f );
+                imageArray[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
+                imageArray[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
             }
         }
     }
 }
 
+void SetupImageProcessor( cv::Mat image )
+{
+    width = image.cols;
+    height = image.rows;
+    step = image.step;
+    imageBytes = step * height;
+    block.x = 16;
+    block.y = 16;
+    grid.x = ( width + block.x - 1 ) / block.x;
+    grid.y = ( height + block.y - 1 ) / block.y;
+    // Allocate device accessible memory to the imageArray
+    cudaMallocManaged( &imageArray, imageBytes );
+}
+
+void DestroyImageProcessor()
+{
+    // Free cuda allocated memory
+    cudaFree( imageArray );
+}
+
 cv::Mat computeThreshold( int threshold, cv::Mat image )
 {
-    // Calculate the total number of bytes
-    const int bytes = image.step * image.rows;
-
-    // Malloc and Memcpy the image to a cuda array
-    unsigned char *array;
-    cudaMallocManaged( &array, bytes);
-    cudaMemcpy( array, image.ptr(), bytes, cudaMemcpyHostToDevice );
-
-    // Specify a reasonable block size
-    const dim3 block( 16, 16 );
-
-    // Calculate grid size to cover the whole image
-    const dim3 grid( ( image.cols + block.x - 1 ) / block.x, ( image.rows + block.y - 1 ) / block.y );
+    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
-    applyThreshold<<<grid, block>>>( threshold, array, image.cols, image.rows, image.step );
+    applyThreshold<<<grid, block>>>( imageArray, threshold, width, height, step );
 
     // Wait for GPU to finish
     cudaDeviceSynchronize();
 
     // Copy cuda array back to the image
-    cudaMemcpy( image.ptr(), array, bytes, cudaMemcpyDeviceToHost );
-
-    // Free cuda malloc'd memory
-    cudaFree( array );
+    cudaMemcpy( image.ptr(), imageArray, imageBytes, cudaMemcpyDeviceToHost );
 
     // Return the updated image
     return image;
@@ -153,31 +160,16 @@ cv::Mat computeThreshold( int threshold, cv::Mat image )
 
 cv::Mat computeEdges( cv::Mat image )
 {
-    // Calculate the total number of bytes
-    const int bytes = image.step * image.rows;
-
-    // Malloc and Memcpy the image to a cuda array
-    unsigned char *array;
-    cudaMallocManaged( &array, bytes );
-    cudaMemcpy( array, image.ptr(), bytes, cudaMemcpyHostToDevice );
-
-    // Specify a reasonable block size
-    const dim3 block( 16, 16 );
-
-    // Calculate grid size to cover the whole image
-    const dim3 grid( ( image.cols + block.x - 1 ) / block.x, ( image.rows + block.y - 1 ) / block.y );
+    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
-    applyEdgeDetection<<<grid, block>>>( array, image.cols, image.rows, image.step );
+    applyEdgeDetection<<<grid, block>>>( imageArray, width, height, step );
 
     // Wait for GPU to finish
     cudaDeviceSynchronize();
 
     // Copy cuda array back to the image
-    cudaMemcpy( image.ptr(), array, bytes, cudaMemcpyDeviceToHost );
-
-    // Free cuda malloc'd memory
-    cudaFree( array );
+    cudaMemcpy( image.ptr(), imageArray, imageBytes, cudaMemcpyDeviceToHost );
 
     // Return the updated image
     return image;

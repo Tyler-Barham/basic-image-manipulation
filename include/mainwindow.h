@@ -10,9 +10,8 @@
 #include <QTemporaryFile>
 #include <QFile>
 #include <opencv2/opencv.hpp>
-#include <QDebug>
 
-#include "imageprocessor.h"
+#include "include/imageprocessorwrapper.h"
 
 namespace Ui {
     class MainWindow;
@@ -41,7 +40,7 @@ signals:
         void updateUIWithCurrImage();
 
         Ui::MainWindow *ui;
-        ImageProcessor *imgProcessor;
+        ImageProcessorWrapper *imgProWrapper;
         QThread *imgThread;
         cv::Mat origImg;
         cv::Mat currImg;

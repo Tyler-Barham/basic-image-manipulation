@@ -1,5 +1,5 @@
-#ifndef IMAGEPROCESSOR_H
-#define IMAGEPROCESSOR_H
+#ifndef IMAGEPROCESSORWRAPPER_H
+#define IMAGEPROCESSORWRAPPER_H
 
 #include <QObject>
 #include <QPixmap>
@@ -7,12 +7,12 @@
 #include <QColor>
 #include <opencv2/opencv.hpp>
 
-class ImageProcessor : public QObject
+class ImageProcessorWrapper : public QObject
 {
     Q_OBJECT
     public:
-        ImageProcessor();
-        ~ImageProcessor();
+        ImageProcessorWrapper( cv::Mat image );
+        ~ImageProcessorWrapper();
 
     signals:
         void thresholdComplete( cv::Mat updatedImg );
@@ -23,4 +23,4 @@ class ImageProcessor : public QObject
         void startEdgeDetection( cv::Mat image );
 };
 
-#endif // IMAGEPROCESSOR_H
+#endif // IMAGEPROCESSORWRAPPER_H
