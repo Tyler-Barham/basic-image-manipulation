@@ -12,20 +12,19 @@ int imageBytes;
 int width;
 int height;
 int step;
-dim3 block;
-dim3 grid;
+int block;
+int grid;
 
 __global__ void applyThreshold( unsigned char *imageArray, int threshold, const int width, const int height, const int step )
 {
     // 2D Index of current thread
     const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-    const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
 
     // Only valid threads perform memory I/O
-    if( ( xIndex < width ) && ( yIndex < height ) )
+    if( xIndex < width + ( width * blockIdx.x ) )
     {
         // Location of pixel in image
-        const int pid = yIndex * step + ( 3 * xIndex );
+        const int pid = 3 * xIndex;
 
         // RGB values of the pixel
         const unsigned char red = imageArray[ pid ];
@@ -50,13 +49,12 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
 {
     // 2D Index of current thread
     const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-    const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
 
     // Only valid threads perform memory I/O
-    if( ( xIndex < width ) && ( yIndex < height ) )
+    if( xIndex < width + ( width * blockIdx.x ) )
     {
         // Location of pixel in image
-        const int pid = yIndex * step + ( 3 * xIndex );
+        const int pid = 3 * xIndex;
 
         // RGB values of the pixel
         const unsigned char red = imageArray[ pid ];
@@ -72,15 +70,16 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             // Have not yet detected edges
             bool edge = false;
 
-            // Location of neighboring pixels in image
-            const int neighbors[] = { ( yIndex + 1 ) * step + ( 3 * ( xIndex + 1 ) ),
-                                      ( yIndex + 1 ) * step + ( 3 * ( xIndex - 1 ) ),
-                                      ( yIndex + 1 ) * step + ( 3 * xIndex ),
-                                      ( yIndex - 1 ) * step + ( 3 * ( xIndex + 1 ) ),
-                                      ( yIndex - 1 ) * step + ( 3 * ( xIndex - 1 ) ),
-                                      ( yIndex - 1 ) * step + ( 3 * xIndex ),
-                                        yIndex * step + ( 3 * ( xIndex + 1 ) ),
-                                        yIndex * step + ( 3 * ( xIndex - 1 ) ) };
+            // Location of neighboring pixels in image ( +-1, +-width )
+            const int neighbors[] = { ( xIndex + 1 ) * 3,
+                                      ( xIndex + 1 + width ) * 3,
+                                      ( xIndex + 1 - width ) * 3,
+                                      ( xIndex + width ) * 3,
+                                      ( xIndex - 1 ) * 3,
+                                      ( xIndex - width ) * 3,
+                                      ( xIndex - 1 + width ) * 3,
+                                      ( xIndex - 1 - width ) * 3
+                                    };
 
             // Number of items in the array
             int neighborsLength = sizeof( neighbors ) / sizeof( int );
@@ -127,10 +126,8 @@ void SetupImageProcessor( cv::Mat image )
     height = image.rows;
     step = image.step;
     imageBytes = step * height;
-    block.x = 16;
-    block.y = 16;
-    grid.x = ( width + block.x - 1 ) / block.x;
-    grid.y = ( height + block.y - 1 ) / block.y;
+    block = 256;
+    grid = ( ( width * height ) + block - 1 ) / block;
     // Allocate device accessible memory to the imageArray
     cudaMallocManaged( &imageArray, imageBytes );
 }
@@ -143,7 +140,7 @@ void DestroyImageProcessor()
 
 cv::Mat computeThreshold( int threshold, cv::Mat image )
 {
-    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
+    cudaMemcpy( imageArray, image.data, imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
     applyThreshold<<<grid, block>>>( imageArray, threshold, width, height, step );
@@ -160,7 +157,7 @@ cv::Mat computeThreshold( int threshold, cv::Mat image )
 
 cv::Mat computeEdges( cv::Mat image )
 {
-    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
+    cudaMemcpy( imageArray, image.data, imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
     applyEdgeDetection<<<grid, block>>>( imageArray, width, height, step );
