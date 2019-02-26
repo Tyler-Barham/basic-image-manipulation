@@ -37,7 +37,7 @@
       <number>5</number>
      </property>
      <item>
-      <layout class="QHBoxLayout" name="layoutTopbar" stretch="7,2,1">
+      <layout class="QHBoxLayout" name="layoutTopbar" stretch="7,3">
        <item>
         <layout class="QHBoxLayout" name="layoutThreshold">
          <item>
@@ -91,14 +91,7 @@
          <item>
           <widget class="QPushButton" name="buttonThreshold">
            <property name="text">
-            <string>Threshold</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="buttonReload">
-           <property name="text">
-            <string>Reload</string>
+            <string>Compute Threshold</string>
            </property>
           </widget>
          </item>
@@ -106,6 +99,13 @@
           <widget class="QPushButton" name="buttonEgdes">
            <property name="text">
             <string>Detect Edges</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="buttonClear">
+           <property name="text">
+            <string>Clear Image</string>
            </property>
           </widget>
          </item>
@@ -123,16 +123,6 @@
           </size>
          </property>
         </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelStatus">
-         <property name="text">
-          <string>Status</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
        </item>
       </layout>
      </item>

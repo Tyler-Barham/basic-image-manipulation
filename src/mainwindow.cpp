@@ -21,7 +21,7 @@ MainWindow::MainWindow( QWidget *parent ) :
         if ( QFile::copy( ":/images/testImage.png", tempFile ) )
         {
             // Use opencv to read the image from the absolute path
-            origImg = cv::imread( tempFile.toStdString() );
+            origImg = cv::imread( tempFile.toStdString(), CV_LOAD_IMAGE_COLOR );
             currImg = origImg.clone();
 
             if( !origImg.empty() )
@@ -69,7 +69,7 @@ void MainWindow::on_horizontalSlider_valueChanged( int value )
     ui->contentThreshold->setText( QString::number( threshold ) );
 }
 
-void MainWindow::on_buttonReload_clicked()
+void MainWindow::on_buttonClear_clicked()
 {
     // Set the label pixmap as the original image
     currImg = origImg.clone();

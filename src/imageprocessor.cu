@@ -2,6 +2,8 @@
 #include <cuda_runtime.h>
 #include <opencv2/opencv.hpp>
 
+#include <stdio.h>
+
 extern "C" void SetupImageProcessor( cv::Mat image );
 extern "C" void DestroyImageProcessor();
 extern "C" cv::Mat computeThreshold( int threshold, cv::Mat image );
@@ -11,74 +13,90 @@ unsigned char *imageArray;
 int imageBytes;
 int width;
 int height;
-int step;
-int block;
-int grid;
+int blockSize;
+int gridSize;
 
-__global__ void applyThreshold( unsigned char *imageArray, int threshold, const int width, const int height, const int step )
+__global__ void applyThreshold( unsigned char *imageArray, int threshold, const int width, const int height )
 {
-    // 2D Index of current thread
-    const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    // Index of current thread
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    // Stride amount
+    const int stride = blockDim.x * gridDim.x;
 
-    // Only valid threads perform memory I/O
-    if( xIndex < width + ( width * blockIdx.x ) )
+    // Use grid-stride loop to ensure all elements are processed
+    for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
-        // Location of pixel in image
+        // Pixel density multiplied by pixel location
         const int pid = 3 * xIndex;
 
         // RGB values of the pixel
-        const unsigned char red = imageArray[ pid ];
-        const unsigned char green = imageArray[ pid + 1 ];
-        const unsigned char blue = imageArray[ pid + 2 ];
+        const unsigned int red = imageArray[ pid ];
+        const unsigned int green = imageArray[ pid + 1 ];
+        const unsigned int blue = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
-        const float gray = ( ( red * 11.0f ) + ( green * 16.0f ) + ( blue * 5.0f ) ) / 32.0f;
+        const int gray = ( ( red * 11 ) + ( green * 16 ) + ( blue * 5 ) ) / 32;
 
-        // If pixel is darker than the threshold
-        if( gray < threshold )
+        // Detect if the pixel is an outline (if so, pixel won't be thresholded)
+        bool isOutline = false;
+        if( red == 255 && green == 0 && blue == 0 )
+        {
+            isOutline = true;
+        }
+
+        // If pixel is darker than the threshold && not a previous edge
+        if( gray < threshold && !isOutline )
         {
             // Change pixel to black
-            imageArray[ pid ] = static_cast<unsigned char>( 0.0f );
-            imageArray[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
-            imageArray[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
+            imageArray[ pid ] = ( unsigned char ) 0;
+            imageArray[ pid + 1 ] = ( unsigned char ) 0;
+            imageArray[ pid + 2 ] = ( unsigned char ) 0;
         }
     }
 }
 
-__global__ void applyEdgeDetection( unsigned char *imageArray, const int width, const int height, const int step )
+__global__ void applyEdgeDetection( unsigned char *imageArray, const int width, const int height )
 {
-    // 2D Index of current thread
-    const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    // Index of current thread
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+    const int stride = blockDim.x * gridDim.x;
 
-    // Only valid threads perform memory I/O
-    if( xIndex < width + ( width * blockIdx.x ) )
+    // Use grid-stride loop to ensure all elements are processed
+    for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
-        // Location of pixel in image
+        // Pixel density multiplied by pixel location
         const int pid = 3 * xIndex;
 
         // RGB values of the pixel
-        const unsigned char red = imageArray[ pid ];
-        const unsigned char green = imageArray[ pid + 1 ];
-        const unsigned char blue = imageArray[ pid + 2 ];
+        const unsigned int curr_red = imageArray[ pid ];
+        const unsigned int curr_green = imageArray[ pid + 1 ];
+        const unsigned int curr_blue = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
-        const float gray = ( ( red * 11.0f ) + ( green * 16.0f ) + ( blue * 5.0f ) ) / 32.0f;
+        const int gray = ( ( curr_red * 11 ) + ( curr_green * 16 ) + ( curr_blue * 5 ) ) / 32;
 
-        // If this is a pixel with color
-        if( gray != 0 )
+        // Detect if the pixel is an outline (if so, no need to perform calulation)
+        bool isOutline = false;
+        if( curr_red == 255 && curr_green == 0 && curr_blue == 0 )
+        {
+            isOutline = true;
+        }
+
+        // If this is a pixel with color && not a previous edge
+        if( gray != 0 && !isOutline )
         {
             // Have not yet detected edges
             bool edge = false;
 
             // Location of neighboring pixels in image ( +-1, +-width )
-            const int neighbors[] = { ( xIndex + 1 ) * 3,
-                                      ( xIndex + 1 + width ) * 3,
-                                      ( xIndex + 1 - width ) * 3,
-                                      ( xIndex + width ) * 3,
-                                      ( xIndex - 1 ) * 3,
-                                      ( xIndex - width ) * 3,
-                                      ( xIndex - 1 + width ) * 3,
-                                      ( xIndex - 1 - width ) * 3
+            const int neighbors[] = { ( xIndex + 1 ),
+                                      ( xIndex + 1 + width ),
+                                      ( xIndex + 1 - width ),
+                                      ( xIndex + width ),
+                                      ( xIndex - 1 ),
+                                      ( xIndex - width ),
+                                      ( xIndex - 1 + width ),
+                                      ( xIndex - 1 - width )
                                     };
 
             // Number of items in the array
@@ -87,18 +105,19 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             // For each number
             for( int i = 0; i < neighborsLength; i++ )
             {
-                const int currPix = neighbors[ i ];
+                // Neighbor location mulitplied by pixel density
+                const int neighborID = neighbors[ i ] * 3;
 
                 // If out of range
-                if( ( currPix < 0 ) || ( ( currPix + 2 ) > ( width * height ) ) )
+                if( ( neighborID < 0 ) || ( ( neighborID + 2 ) > ( width * height ) ) )
                 {
                     continue;
                 }
 
-                // BGR values of the pixel
-                const unsigned char red = imageArray[ currPix ];
-                const unsigned char green = imageArray[ currPix + 1 ];
-                const unsigned char blue = imageArray[ currPix + 2 ];
+                // RGB values of the pixel
+                const unsigned int red = imageArray[ neighborID ];
+                const unsigned int green = imageArray[ neighborID + 1 ];
+                const unsigned int blue = imageArray[ neighborID + 2 ];
 
                 // If neighbor is black, this is an edge
                 if( red == 0 && green == 0 && blue == 0 )
@@ -111,25 +130,48 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             // if this was an edge, change the color
             if( edge )
             {
-                // Change pixel to black
-                imageArray[ pid ] = static_cast<unsigned char>( 255.0f );
-                imageArray[ pid + 1 ] = static_cast<unsigned char>( 0.0f );
-                imageArray[ pid + 2 ] = static_cast<unsigned char>( 0.0f );
+                // Change pixel to red
+                imageArray[ pid ] = ( unsigned char ) 255;
+                imageArray[ pid + 1 ] = ( unsigned char ) 0;
+                imageArray[ pid + 2 ] = ( unsigned char ) 0;
             }
         }
     }
+}
+
+int main(int argc, char **argv)
+{
+    cv::Mat origImg = cv::imread( "/home/tyler/Documents/qt-projects/image_manipulation/resources/testImage.png", CV_LOAD_IMAGE_COLOR );
+    cv::Mat newImg = origImg.clone();
+
+    SetupImageProcessor( newImg );
+
+    newImg = computeThreshold( 20, origImg );
+
+    newImg = computeEdges( newImg );
+
+    cv::cvtColor( newImg, newImg, CV_BGR2RGB );
+    cv::imshow( "Edges", newImg );
+    cv::waitKey( 5000 );
+    cv::destroyAllWindows();
+
+    DestroyImageProcessor();
+
+    return 0;
 }
 
 void SetupImageProcessor( cv::Mat image )
 {
     width = image.cols;
     height = image.rows;
-    step = image.step;
-    imageBytes = step * height;
-    block = 256;
-    grid = ( ( width * height ) + block - 1 ) / block;
+    imageBytes = image.step[0] * image.rows; //strlen( ( char* )image.data );
+    blockSize = 1024;
+    gridSize = 1;
+    //gridSize = ceil( ( width * height ) + blockSize - 1 ) / blockSize;
     // Allocate device accessible memory to the imageArray
-    cudaMallocManaged( &imageArray, imageBytes );
+    cudaMalloc<unsigned char>( &imageArray, imageBytes );
+
+    // Image = CV_8UC3 = 8Bit - Unsigned int - 3 channel
 }
 
 void DestroyImageProcessor()
@@ -140,10 +182,10 @@ void DestroyImageProcessor()
 
 cv::Mat computeThreshold( int threshold, cv::Mat image )
 {
-    cudaMemcpy( imageArray, image.data, imageBytes, cudaMemcpyHostToDevice );
+    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
-    applyThreshold<<<grid, block>>>( imageArray, threshold, width, height, step );
+    applyThreshold<<<gridSize, blockSize>>>( imageArray, threshold, width, height );
 
     // Wait for GPU to finish
     cudaDeviceSynchronize();
@@ -157,10 +199,10 @@ cv::Mat computeThreshold( int threshold, cv::Mat image )
 
 cv::Mat computeEdges( cv::Mat image )
 {
-    cudaMemcpy( imageArray, image.data, imageBytes, cudaMemcpyHostToDevice );
+    cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
-    applyEdgeDetection<<<grid, block>>>( imageArray, width, height, step );
+    applyEdgeDetection<<<gridSize, blockSize>>>( imageArray, width, height );
 
     // Wait for GPU to finish
     cudaDeviceSynchronize();
