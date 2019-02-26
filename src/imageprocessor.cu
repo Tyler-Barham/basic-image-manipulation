@@ -106,13 +106,13 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             int neighborsLength = sizeof( neighbors ) / sizeof( int );
 
             // For each number
-            for( int i = 0; i < neighborsLength; i++ )
+            for( int nIdx = 0; nIdx < neighborsLength; nIdx++ )
             {
                 // Neighbor location mulitplied by pixel density
-                const int neighborPid = neighbors[ i ] * channels;
+                const int neighborPid = neighbors[ nIdx ] * channels;
 
                 // If out of range
-                if( ( neighborPid > 0 ) && ( neighborPid < ( width * height ) ) )
+                if( ( neighborPid > 0 ) && ( neighborPid < ( width * height * channels ) ) )
                 {
                     // RGB values of the pixel
                     const unsigned int blue = imageArray[ neighborPid ];
@@ -120,6 +120,7 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
                     const unsigned int red = imageArray[ neighborPid + 2 ];
 
                     // Curr px has color, so if neighbor is black, it is the edge
+                    // This outlines the px outside the object rather then inside it
                     if( red == 0 && green == 0 && blue == 0 )
                     {
                         imageArray[ neighborPid ] = ( unsigned char ) 0;
@@ -208,5 +209,3 @@ cv::Mat computeEdges( cv::Mat image )
     // Return the updated image
     return image;
 }
-
-// TODO: Make edge detection cover entire screen (currently top 1/3 only)
