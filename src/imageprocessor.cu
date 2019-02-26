@@ -25,10 +25,10 @@ __global__ void applyThreshold( unsigned char *imageArray, int threshold, const 
     // Use grid-stride loop to ensure all elements are processed
     for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
-        // Pixel density multiplied by pixel location
+        // Pixel location multiplied by channels to get correct array index
         const int pid = xIndex * channels;
 
-        // RGB values of the pixel
+        // BGR values of the pixel
         const unsigned int blue = imageArray[ pid ];
         const unsigned int green = imageArray[ pid + 1 ];
         const unsigned int red = imageArray[ pid + 2 ];
@@ -68,10 +68,10 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
     // Use grid-stride loop to ensure all elements are processed
     for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
-        // Pixel density multiplied by pixel location
+        // Pixel location multiplied by channels to get correct array index
         const int pid = xIndex * channels;
 
-        // RGB values of the pixel
+        // BGR values of the pixel
         const unsigned int curr_blue = imageArray[ pid ];
         const unsigned int curr_green = imageArray[ pid + 1 ];
         const unsigned int curr_red = imageArray[ pid + 2 ];
@@ -90,32 +90,33 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
                                       ( xIndex - 1 - width )
                                     };
 
-            // Number of items in the array
+            // Number of neighbors in the array
             int neighborsLength = sizeof( neighbors ) / sizeof( int );
 
-            // For each number
+            // For each neighbor
             for( int nIdx = 0; nIdx < neighborsLength; nIdx++ )
             {
-                // Neighbor location mulitplied by pixel density
+                // Neighbor pixel location multiplied by channels to get correct array index
                 const int neighborPid = neighbors[ nIdx ] * channels;
 
-                // If out of range
+                // If not out of range
                 if( ( neighborPid > 0 ) && ( neighborPid < ( width * height * channels ) ) )
                 {
-                    // RGB values of the pixel
+                    // BGR values of the pixel
                     const unsigned int blue = imageArray[ neighborPid ];
                     const unsigned int green = imageArray[ neighborPid + 1 ];
                     const unsigned int red = imageArray[ neighborPid + 2 ];
 
-                    // The neighbor is a colored px
+                    // Check if the neighbor is a colored pixel
                     if( red != 0 || green != 0 || blue != 0 )
                     {
-                        // Detect if the neighbor is an outline
+                        // Detect if the colored neighbor is actually an outline and skip if so
                         if( red == 255 && green == 0 && blue == 0 )
                         {
                             continue;
                         }
 
+                        // Change this pixel to a red one (indicating an outline)
                         imageArray[ pid ] = ( unsigned char ) 0;
                         imageArray[ pid + 1 ] = ( unsigned char ) 0;
                         imageArray[ pid + 2 ] = ( unsigned char ) 255;
@@ -126,6 +127,7 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
     }
 }
 
+// Main - used when testing this file alone (i.e. without QT)
 /*
 int main(int argc, char **argv)
 {
@@ -171,6 +173,7 @@ void DestroyImageProcessor()
 
 cv::Mat computeThreshold( int threshold, cv::Mat image )
 {
+    // Copy the image data into a device accessible array
     cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
     // Perform thresholding on the image
@@ -179,7 +182,7 @@ cv::Mat computeThreshold( int threshold, cv::Mat image )
     // Wait for GPU to finish
     cudaDeviceSynchronize();
 
-    // Copy cuda array back to the image
+    // Copy device array back to the image
     cudaMemcpy( image.ptr(), imageArray, imageBytes, cudaMemcpyDeviceToHost );
 
     // Return the updated image
@@ -188,15 +191,16 @@ cv::Mat computeThreshold( int threshold, cv::Mat image )
 
 cv::Mat computeEdges( cv::Mat image )
 {
+    // Copy the image data into a device accessible array
     cudaMemcpy( imageArray, image.ptr(), imageBytes, cudaMemcpyHostToDevice );
 
-    // Perform thresholding on the image
+    // Perform edge detection on the image
     applyEdgeDetection<<<gridSize, blockSize>>>( imageArray, width, height );
 
     // Wait for GPU to finish
     cudaDeviceSynchronize();
 
-    // Copy cuda array back to the image
+    // Copy device array back to the image
     cudaMemcpy( image.ptr(), imageArray, imageBytes, cudaMemcpyDeviceToHost );
 
     // Return the updated image
