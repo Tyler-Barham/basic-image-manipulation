@@ -81,9 +81,6 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
         const unsigned int curr_green = imageArray[ pid + 1 ];
         const unsigned int curr_red = imageArray[ pid + 2 ];
 
-        // Calculate the grayscale color of the pixel
-        const int gray = ( ( curr_red * 11 ) + ( curr_green * 16 ) + ( curr_blue * 5 ) ) / 32;
-
         // Detect if the pixel is an outline (if so, no need to perform calulation)
         bool isOutline = false;
         if( curr_red == 255 && curr_green == 0 && curr_blue == 0 )
@@ -92,11 +89,8 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
         }
 
         // If this is a pixel with color && not a previous edge
-        if( gray != 0 && !isOutline )
+        if( ( curr_red != 0 || curr_green != 0 || curr_blue != 0 ) && !isOutline )
         {
-            // Have not yet detected edges
-            bool edge = false;
-
             // Location of neighboring pixels in image ( +-1, +-width )
             const int neighbors[] = { ( xIndex + 1 ),
                                       ( xIndex + 1 + width ),
@@ -115,34 +109,24 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             for( int i = 0; i < neighborsLength; i++ )
             {
                 // Neighbor location mulitplied by pixel density
-                const int neighborID = neighbors[ i ] * channels;
+                const int neighborPid = neighbors[ i ] * channels;
 
                 // If out of range
-                if( ( neighborID < 0 ) || ( neighborID > ( width * height ) ) )
+                if( ( neighborPid > 0 ) && ( neighborPid < ( width * height ) ) )
                 {
-                    continue;
+                    // RGB values of the pixel
+                    const unsigned int blue = imageArray[ neighborPid ];
+                    const unsigned int green = imageArray[ neighborPid + 1 ];
+                    const unsigned int red = imageArray[ neighborPid + 2 ];
+
+                    // Curr px has color, so if neighbor is black, it is the edge
+                    if( red == 0 && green == 0 && blue == 0 )
+                    {
+                        imageArray[ neighborPid ] = ( unsigned char ) 0;
+                        imageArray[ neighborPid + 1 ] = ( unsigned char ) 0;
+                        imageArray[ neighborPid + 2 ] = ( unsigned char ) 255;
+                    }
                 }
-
-                // RGB values of the pixel
-                const unsigned int blue = imageArray[ neighborID ];
-                const unsigned int green = imageArray[ neighborID + 1 ];
-                const unsigned int red = imageArray[ neighborID + 2 ];
-
-                // If neighbor is black, this is an edge
-                if( red == 0 && green == 0 && blue == 0 )
-                {
-                    edge = true;
-                    break;
-                }
-            }
-
-            // if this was an edge, change the color
-            if( edge )
-            {
-                // Change pixel to red
-                imageArray[ pid ] = ( unsigned char ) 0;
-                imageArray[ pid + 1 ] = ( unsigned char ) 0;
-                imageArray[ pid + 2 ] = ( unsigned char ) 255;
             }
         }
     }
@@ -161,7 +145,7 @@ int main(int argc, char **argv)
     newImg = computeEdges( newImg );
 
     cv::imshow( "Edges", newImg );
-    cv::waitKey( 5000 );
+    cv::waitKey( 10000 );
     cv::destroyAllWindows();
 
     DestroyImageProcessor();
