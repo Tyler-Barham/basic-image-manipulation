@@ -20,14 +20,18 @@ __global__ void applyThreshold( unsigned char *imageArray, int threshold, const 
 {
     // Index of current thread
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
     // Stride amount
     const int stride = blockDim.x * gridDim.x;
+
+    // Image channel count
+    const int channels = 3;
 
     // Use grid-stride loop to ensure all elements are processed
     for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
         // Pixel density multiplied by pixel location
-        const int pid = 3 * xIndex;
+        const int pid = xIndex * channels;
 
         // RGB values of the pixel
         const unsigned int blue = imageArray[ pid ];
@@ -59,13 +63,18 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
 {
     // Index of current thread
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Image stride amount
     const int stride = blockDim.x * gridDim.x;
+
+    // Image channel count
+    const int channels = 3;
 
     // Use grid-stride loop to ensure all elements are processed
     for( int xIndex = index; xIndex < width * height; xIndex += stride )
     {
         // Pixel density multiplied by pixel location
-        const int pid = 3 * xIndex;
+        const int pid = xIndex * channels;
 
         // RGB values of the pixel
         const unsigned int curr_blue = imageArray[ pid ];
@@ -106,10 +115,10 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             for( int i = 0; i < neighborsLength; i++ )
             {
                 // Neighbor location mulitplied by pixel density
-                const int neighborID = neighbors[ i ] * 3;
+                const int neighborID = neighbors[ i ] * channels;
 
                 // If out of range
-                if( ( neighborID < 0 ) || ( ( neighborID + 2 ) > ( width * height ) ) )
+                if( ( neighborID < 0 ) || ( neighborID > ( width * height ) ) )
                 {
                     continue;
                 }
@@ -139,6 +148,7 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
     }
 }
 
+/*
 int main(int argc, char **argv)
 {
     cv::Mat origImg = cv::imread( "/home/tyler/Documents/qt-projects/image_manipulation/resources/testImage.png", CV_LOAD_IMAGE_COLOR );
@@ -158,18 +168,21 @@ int main(int argc, char **argv)
 
     return 0;
 }
+*/
 
 void SetupImageProcessor( cv::Mat image )
 {
+    // Setup global vars
     width = image.cols;
     height = image.rows;
-    imageBytes = image.step[0] * image.rows; //strlen( ( char* )image.data );
+    imageBytes = image.step[0] * image.rows;
     blockSize = 1024;
     gridSize = ceil( ( width * height ) + blockSize - 1 ) / blockSize;
+
     // Allocate device accessible memory to the imageArray
     cudaMalloc<unsigned char>( &imageArray, imageBytes );
 
-    // Image = CV_8UC3 = 8Bit - Unsigned int - 3 channel
+    // image.type() = 16 = CV_8UC3 = 8Bit, unsigned int, 3 channel
 }
 
 void DestroyImageProcessor()
