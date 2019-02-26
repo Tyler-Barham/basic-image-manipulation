@@ -2,12 +2,7 @@
 #include <cuda_runtime.h>
 #include <opencv2/opencv.hpp>
 
-#include <stdio.h>
-
-extern "C" void SetupImageProcessor( cv::Mat image );
-extern "C" void DestroyImageProcessor();
-extern "C" cv::Mat computeThreshold( int threshold, cv::Mat image );
-extern "C" cv::Mat computeEdges( cv::Mat image );
+#include "imageprocessor.cuda.h"
 
 unsigned char *imageArray;
 int imageBytes;

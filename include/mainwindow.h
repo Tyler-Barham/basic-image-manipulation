@@ -11,7 +11,7 @@
 #include <QFile>
 #include <opencv2/opencv.hpp>
 
-#include "include/imageprocessorwrapper.h"
+#include "imageprocessorwrapper.h"
 
 namespace Ui {
     class MainWindow;

@@ -1,9 +1,5 @@
-#include "include/imageprocessorwrapper.h"
-
-extern "C" void SetupImageProcessor( cv::Mat image );
-extern "C" void DestroyImageProcessor();
-extern "C" cv::Mat computeThreshold( int threshold, cv::Mat image );
-extern "C" cv::Mat computeEdges( cv::Mat image );
+#include "imageprocessorwrapper.h"
+#include "imageprocessor.cuda.h"
 
 ImageProcessorWrapper::ImageProcessorWrapper( cv::Mat image )
 {

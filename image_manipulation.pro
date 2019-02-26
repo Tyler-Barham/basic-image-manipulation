@@ -15,7 +15,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 DESTDIR = $${PWD}/build
 
-CUDA_HEADERS = $$files( include/*.cuh )
+CUDA_HEADERS = $$files( include/*.cuda.h )
 CUDA_SOURCES = $$files( src/*.cu )
 
 # CUDA settings
@@ -73,15 +73,19 @@ CONFIG(debug, debug|release) {
 } else {
     # Release mode
     cuda.input = $$CUDA_SOURCES
-    cuda.output = $${OBJECTS_DIR}/${QMAKE_FILE_BASE}.o
-    cuda.commands = $${CUDA_DIR}/bin/nvcc $$NVCC_OPTIONS $$CUDA_INC $$LIBS --machine $$SYSTEM_TYPE -arch=$$CUDA_ARCH -c -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_NAME}
+    cuda.output = $${DESTDIR}/${QMAKE_FILE_BASE}.o
+    cuda.commands = $${CUDA_DIR}/bin/nvcc $$NVCC_OPTIONS \
+                                          $$CUDA_INC \
+                                          $$LIBS \
+                                          --machine $$SYSTEM_TYPE \
+                                          -arch=$$CUDA_ARCH \
+                                          -c -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_NAME}
     cuda.dependency_type = TYPE_C
-    cuda.CONFIG += target_predeps
+    cuda_d.variable_out = OBJECTS
     QMAKE_EXTRA_COMPILERS += cuda
 }
 
-SOURCES += $$files( src/*.cpp, true )
-HEADERS += $$files( include/*.h, true )
-FORMS += $$files( ui/*.ui, true )
-RESOURCES += $$files( resources/*.qrc, true )
-OTHER_FILES += $${CUDA_SOURCES} $${CUDA_HEADERS}
+SOURCES += $$files( src/*.cpp )
+HEADERS += $$files( include/*.h )
+FORMS += $$files( ui/*.ui )
+RESOURCES += $$files( resources/*.qrc )
