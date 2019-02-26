@@ -76,15 +76,8 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
         const unsigned int curr_green = imageArray[ pid + 1 ];
         const unsigned int curr_red = imageArray[ pid + 2 ];
 
-        // Detect if the pixel is an outline (if so, no need to perform calulation)
-        bool isOutline = false;
-        if( curr_red == 255 && curr_green == 0 && curr_blue == 0 )
-        {
-            isOutline = true;
-        }
-
-        // If this is a pixel with color && not a previous edge
-        if( ( curr_red != 0 || curr_green != 0 || curr_blue != 0 ) && !isOutline )
+        // If this is a black pixel
+        if( curr_red == 0 && curr_green == 0 && curr_blue == 0 )
         {
             // Location of neighboring pixels in image ( +-1, +-width )
             const int neighbors[] = { ( xIndex + 1 ),
@@ -114,13 +107,18 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
                     const unsigned int green = imageArray[ neighborPid + 1 ];
                     const unsigned int red = imageArray[ neighborPid + 2 ];
 
-                    // Curr px has color, so if neighbor is black, it is the edge
-                    // This outlines the px outside the object rather then inside it
-                    if( red == 0 && green == 0 && blue == 0 )
+                    // The neighbor is a colored px
+                    if( red != 0 || green != 0 || blue != 0 )
                     {
-                        imageArray[ neighborPid ] = ( unsigned char ) 0;
-                        imageArray[ neighborPid + 1 ] = ( unsigned char ) 0;
-                        imageArray[ neighborPid + 2 ] = ( unsigned char ) 255;
+                        // Detect if the neighbor is an outline
+                        if( red == 255 && green == 0 && blue == 0 )
+                        {
+                            continue;
+                        }
+
+                        imageArray[ pid ] = ( unsigned char ) 0;
+                        imageArray[ pid + 1 ] = ( unsigned char ) 0;
+                        imageArray[ pid + 2 ] = ( unsigned char ) 255;
                     }
                 }
             }
