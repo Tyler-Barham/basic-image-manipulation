@@ -38,7 +38,8 @@ CUDA_LIBS = \
 OPENCV_LIBS = \
     -L/opt/opencv/lib \
     -lopencv_core \
-    -lopencv_highgui
+    -lopencv_highgui \
+    -lopencv_imgproc
 
 # include paths
 INCLUDEPATH += \

@@ -56,10 +56,12 @@ MainWindow::~MainWindow()
 void MainWindow::updateUIWithCurrImage()
 {
     // Create a QImage from cv::Mat, convert it to a QPixmap, then update the UI
-    ui->contentImage->setPixmap( QPixmap::fromImage( QImage( ( unsigned char* ) currImg.data,
-                                                     currImg.cols,
-                                                     currImg.rows,
-                                                     QImage::Format_RGB888 ) ) );
+    cv::Mat displayedImg;
+    cv::cvtColor( currImg, displayedImg, cv::COLOR_BGR2RGB );
+    ui->contentImage->setPixmap( QPixmap::fromImage( QImage( ( unsigned char* ) displayedImg.data,
+                                                             displayedImg.cols,
+                                                             displayedImg.rows,
+                                                             QImage::Format_RGB888 ) ) );
 }
 
 void MainWindow::on_horizontalSlider_valueChanged( int value )

@@ -30,9 +30,9 @@ __global__ void applyThreshold( unsigned char *imageArray, int threshold, const 
         const int pid = 3 * xIndex;
 
         // RGB values of the pixel
-        const unsigned int red = imageArray[ pid ];
+        const unsigned int blue = imageArray[ pid ];
         const unsigned int green = imageArray[ pid + 1 ];
-        const unsigned int blue = imageArray[ pid + 2 ];
+        const unsigned int red = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
         const int gray = ( ( red * 11 ) + ( green * 16 ) + ( blue * 5 ) ) / 32;
@@ -68,9 +68,9 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
         const int pid = 3 * xIndex;
 
         // RGB values of the pixel
-        const unsigned int curr_red = imageArray[ pid ];
+        const unsigned int curr_blue = imageArray[ pid ];
         const unsigned int curr_green = imageArray[ pid + 1 ];
-        const unsigned int curr_blue = imageArray[ pid + 2 ];
+        const unsigned int curr_red = imageArray[ pid + 2 ];
 
         // Calculate the grayscale color of the pixel
         const int gray = ( ( curr_red * 11 ) + ( curr_green * 16 ) + ( curr_blue * 5 ) ) / 32;
@@ -115,9 +115,9 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
                 }
 
                 // RGB values of the pixel
-                const unsigned int red = imageArray[ neighborID ];
+                const unsigned int blue = imageArray[ neighborID ];
                 const unsigned int green = imageArray[ neighborID + 1 ];
-                const unsigned int blue = imageArray[ neighborID + 2 ];
+                const unsigned int red = imageArray[ neighborID + 2 ];
 
                 // If neighbor is black, this is an edge
                 if( red == 0 && green == 0 && blue == 0 )
@@ -131,9 +131,9 @@ __global__ void applyEdgeDetection( unsigned char *imageArray, const int width, 
             if( edge )
             {
                 // Change pixel to red
-                imageArray[ pid ] = ( unsigned char ) 255;
+                imageArray[ pid ] = ( unsigned char ) 0;
                 imageArray[ pid + 1 ] = ( unsigned char ) 0;
-                imageArray[ pid + 2 ] = ( unsigned char ) 0;
+                imageArray[ pid + 2 ] = ( unsigned char ) 255;
             }
         }
     }
@@ -150,7 +150,6 @@ int main(int argc, char **argv)
 
     newImg = computeEdges( newImg );
 
-    cv::cvtColor( newImg, newImg, CV_BGR2RGB );
     cv::imshow( "Edges", newImg );
     cv::waitKey( 5000 );
     cv::destroyAllWindows();
@@ -166,8 +165,7 @@ void SetupImageProcessor( cv::Mat image )
     height = image.rows;
     imageBytes = image.step[0] * image.rows; //strlen( ( char* )image.data );
     blockSize = 1024;
-    gridSize = 1;
-    //gridSize = ceil( ( width * height ) + blockSize - 1 ) / blockSize;
+    gridSize = ceil( ( width * height ) + blockSize - 1 ) / blockSize;
     // Allocate device accessible memory to the imageArray
     cudaMalloc<unsigned char>( &imageArray, imageBytes );
 
