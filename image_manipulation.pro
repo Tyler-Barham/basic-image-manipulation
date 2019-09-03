@@ -24,7 +24,7 @@ CUDA_DIR = "/usr/local/cuda" # Path to cuda toolkit install
 
 SYSTEM_NAME = unix # Depending on your system either 'Win32', 'x64', or 'Win64'
 SYSTEM_TYPE = 64 # '32' or '64', depending on your system
-CUDA_ARCH = sm_21 # Type of CUDA architecture, for example 'compute_10', 'compute_11', 'sm_10'
+CUDA_ARCH = sm_30 # Type of CUDA architecture, for example 'compute_10', 'compute_11', 'sm_10'
 NVCC_OPTIONS = --use_fast_math -g -G
 
 # library directories
@@ -72,14 +72,14 @@ CONFIG(debug, debug|release) {
     QMAKE_EXTRA_COMPILERS += cuda_d
 } else {
     # Release mode
-    cuda.input = $$CUDA_SOURCES
+    cuda.input = CUDA_SOURCES
     cuda.output = $${DESTDIR}/${QMAKE_FILE_BASE}.o
-    cuda.commands = $${CUDA_DIR}/bin/nvcc $$NVCC_OPTIONS \
-                                          $$CUDA_INC \
-                                          $$LIBS \
-                                          --machine $$SYSTEM_TYPE \
-                                          -arch=$$CUDA_ARCH \
-                                          -c -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_NAME}
+    cuda.commands = $$CUDA_DIR/bin/nvcc $$NVCC_OPTIONS \
+                                        $$CUDA_INC \
+                                        $$LIBS \
+                                        --machine $$SYSTEM_TYPE \
+                                        -arch=$$CUDA_ARCH \
+                                        -c -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_NAME}
     cuda.dependency_type = TYPE_C
     cuda_d.variable_out = OBJECTS
     QMAKE_EXTRA_COMPILERS += cuda
